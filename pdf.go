@@ -2,10 +2,8 @@
 package pdf
 
 import (
-	"encoding/json"
-	"encoding/xml"
-	"fmt"
-	"github.com/archivers-space/xmp"
+	"bytes"
+	"github.com/datatogether/xmp"
 	unicommon "github.com/unidoc/unidoc/common"
 	unilicense "github.com/unidoc/unidoc/license"
 	pdf "github.com/unidoc/unidoc/pdf"
@@ -25,12 +23,7 @@ func MetadataForFile(file string) (map[string]interface{}, error) {
 
 // MetadataForFile generates metadata from a byte slice
 func MetadataForBytes(data []byte) (map[string]interface{}, error) {
-	// r, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return extract(r)
-	return nil, nil
+	return extract(bytes.NewReader(data))
 }
 
 func extract(r io.ReadSeeker) (map[string]interface{}, error) {
@@ -63,6 +56,7 @@ func extract(r io.ReadSeeker) (map[string]interface{}, error) {
 					if otype == "Catalog" {
 						// fmt.Println(dict.String())
 						for key, obj := range *dict {
+							// TODO - check pdf spec, is only one metadata entry allowed?
 							if key.String() == "Metadata" {
 								oNum := obj.(*pdf.PdfObjectReference).ObjectNumber
 								obj, err := p.LookupByNumber(int(oNum))
@@ -70,7 +64,11 @@ func extract(r io.ReadSeeker) (map[string]interface{}, error) {
 									return nil, err
 								}
 								if sobj, isStream := obj.(*pdf.PdfObjectStream); isStream {
-									return xmp.XmpMetaFromObject(sobj.Stream)
+									packet, err := xmp.Unmarshal(sobj.Stream)
+									if err != nil {
+										return nil, err
+									}
+									return packet.AsPODObject(), nil
 								}
 							}
 						}
