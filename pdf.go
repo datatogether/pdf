@@ -68,7 +68,7 @@ func extract(r io.ReadSeeker) (map[string]interface{}, error) {
 									if err != nil {
 										return nil, err
 									}
-									return packet.AsPODObject(), nil
+									return packet.AsPOD().AsObject()
 								}
 							}
 						}
