@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"github.com/datatogether/xmp"
 	unicommon "github.com/unidoc/unidoc/common"
-	unilicense "github.com/unidoc/unidoc/license"
-	pdf "github.com/unidoc/unidoc/pdf"
+	unilicense "github.com/unidoc/unidoc/common/license"
+	pdf "github.com/unidoc/unidoc/pdf/core"
 	"io"
 	"os"
 )
@@ -43,22 +43,18 @@ func extract(r io.ReadSeeker) (map[string]interface{}, error) {
 		if err != nil || o.String() == "null" {
 			break
 		}
-
-		iobj, isIndirect := o.(*pdf.PdfIndirectObject)
-		if isIndirect {
+		if iobj, isIndirect := o.(*pdf.PdfIndirectObject); isIndirect {
 			// fmt.Printf("IND OOBJ %d: %s\n", xref.objectNumber, iobj)
-			dict, isDict := iobj.PdfObject.(*pdf.PdfObjectDictionary)
-			if isDict {
+			if dict, isDict := iobj.PdfObject.(*pdf.PdfObjectDictionary); isDict {
 				// Check if has Type parameter.
-				if ot, has := (*dict)["Type"].(*pdf.PdfObjectName); has {
-					otype := string(*ot)
+				if ot, has := dict.Get("Type").(*pdf.PdfObjectName); has {
 					// fmt.Printf("---> Obj type: %s\n", otype)
-					if otype == "Catalog" {
+					if ot.String() == "Catalog" {
 						// fmt.Println(dict.String())
-						for key, obj := range *dict {
+						for _, key := range dict.Keys() {
 							// TODO - check pdf spec, is only one metadata entry allowed?
 							if key.String() == "Metadata" {
-								oNum := obj.(*pdf.PdfObjectReference).ObjectNumber
+								oNum := dict.Get(key).(*pdf.PdfObjectReference).ObjectNumber
 								obj, err := p.LookupByNumber(int(oNum))
 								if err != nil {
 									return nil, err
